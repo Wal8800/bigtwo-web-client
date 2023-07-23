@@ -1,13 +1,30 @@
 import { Sprite } from "@pixi/react"
-import cardImage from "./C1.png"
 import React from 'react';
+import { PyCard, Suit } from "../../model";
+
 
 type CardProps = {
     x: number
     y?: number
+    card: PyCard
 }
 
-function Card({ x, y } : CardProps) {
+function toImageSuit(suit: Suit): String{
+  switch (suit) {
+    case Suit.SPADE:
+      return "S"
+    case Suit.HEART:
+      return "H"
+    case Suit.CLUB:
+      return "C"
+    case Suit.DIAMOND:
+      return "D"
+    default:
+      throw new Error(`unexpected suit: ${suit}`)
+  }
+}
+
+function Card({ x, y, card } : CardProps) {
     const isSelected = React.useRef(false);
     const [position, setPosition] = React.useState({ x: x || 0, y: y || 0 })
     const selectedOffset = 30
@@ -20,10 +37,11 @@ function Card({ x, y } : CardProps) {
         isSelected.current = !isSelected.current
     }
 
+    const imageName = `/images/${card.rank}${toImageSuit(card.suit)}.svg.png`
 
     return (
         <Sprite
-        image={cardImage}
+        image={process.env.PUBLIC_URL + imageName}
         height={162}
         width={106}
         position={position}
@@ -32,50 +50,5 @@ function Card({ x, y } : CardProps) {
       />
     );
 }
-
-
-
-export const DraggableCard = ({ x, y } : CardProps) => {
-    const isDragging = React.useRef(false);
-    const offset = React.useRef({ x: 0, y: 0 });
-    const [position, setPosition] = React.useState({ x: x || 0, y: y || 0 })
-    
-    function onStart(e: any) {
-      isDragging.current = true;    
-      offset.current = {
-        x: e.data.global.x - position.x,
-        y: e.data.global.y - position.y
-      };
-      
-    }
-  
-    function onEnd() {
-      isDragging.current = false;
-    }
-  
-    function onMove(e: any) {
-      if (isDragging.current) {
-        setPosition({
-          x: e.data.global.x - offset.current.x,
-          y: e.data.global.y - offset.current.y,
-        })
-      }
-    }
-  
-    return (
-      <Sprite
-        position={position}
-        image={cardImage}
-        height={162}
-        width={106}
-        zIndex={2}
-        interactive={true}
-        pointerdown={onStart}
-        pointerup={onEnd}
-        pointerupoutside={onEnd}
-        pointermove={onMove}
-      />
-    );
-  };
 
 export default Card
