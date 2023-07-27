@@ -9,6 +9,9 @@ type CardProps = {
     card: PyCard
 }
 
+export const CARD_WIDTH = 84
+export const CARD_HEIGHT = 128
+
 function toImageSuit(suit: Suit): String{
   switch (suit) {
     case Suit.SPADE:
@@ -42,8 +45,8 @@ function Card({ x, y, card } : CardProps) {
     return (
         <Sprite
         image={process.env.PUBLIC_URL + imageName}
-        height={162}
-        width={106}
+        height={CARD_HEIGHT}
+        width={CARD_WIDTH}
         position={position}
         interactive={true}
         pointerdown={onPointerDown}
