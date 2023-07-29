@@ -7,6 +7,8 @@ type CardProps = {
     x: number
     y?: number
     card: PyCard
+    isSelected?: boolean
+    onSelect?: (isSelected: boolean) => void
 }
 
 export const CARD_WIDTH = 84
@@ -27,20 +29,32 @@ function toImageSuit(suit: Suit): String{
   }
 }
 
-function Card({ x, y, card } : CardProps) {
-    const isSelected = React.useRef(false);
+function Card({ x, y, card, isSelected, onSelect } : CardProps) {
     const [position, setPosition] = React.useState({ x: x || 0, y: y || 0 })
     const selectedOffset = 30
 
     const onPointerDown = (event: any) => {
         setPosition({
             x: position.x,
-            y: isSelected.current ? position.y + selectedOffset : position.y - selectedOffset
+            y: isSelected ? position.y + selectedOffset : position.y - selectedOffset
           })
-        isSelected.current = !isSelected.current
+        isSelected = !isSelected
+
+        onSelect?.(isSelected)
     }
 
     const imageName = `/images/${card.rank}${toImageSuit(card.suit)}.svg.png`
+
+    if (onSelect === undefined) {
+      return (
+        <Sprite
+        image={process.env.PUBLIC_URL + imageName}
+        height={CARD_HEIGHT}
+        width={CARD_WIDTH}
+        position={position}
+      />
+      )
+    }
 
     return (
         <Sprite
