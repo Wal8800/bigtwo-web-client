@@ -50,7 +50,7 @@ const predictAction = function (
 const playBot = function(
   pyEnv: PyEnv,
   obs: PyProxy,
-  model: any,): PyProxy {
+  model: any,): [PyProxy, boolean] {
   const ohe = pyEnv.obsToOhe(obs).tolist();
   const mask = pyEnv.generateActionMask(pyEnv.rawActionToCat, obs);
 
@@ -59,6 +59,9 @@ const playBot = function(
     ohe.toJs({ create_proxies: false }),
     mask.toJs({ create_proxies: false })
   );
+
+  ohe.destroy()
+  mask.destroy()
 
   const rawAction = pyEnv.catToRawAction.get(cat);
 
@@ -78,22 +81,28 @@ const playBot = function(
     obs.current_player,
     cards
   )
-  pyEnv.game.step(rawAction);
+  const [updatedObs, done] = pyEnv.game.step(rawAction);
 
+  updatedObs.destroy()
   rawAction.destroy()
 
-  return pyEnv.game.get_current_player_obs();
+  const nextPlayerObs = pyEnv.game.get_current_player_obs()
+  return [nextPlayerObs, done]
 }
 
 const resetAndStart = function (pyEnv: PyEnv, model: any) {
   let obs = pyEnv.game.reset();
-
   while (true) {
     if (obs.current_player === DEFAULT_PLAYER_ID) {
       return obs;
     }
 
-    obs = playBot(pyEnv, obs, model)
+    let [nextPlayerObs, done] = playBot(pyEnv, obs, model)
+    if (done) {
+      throw new Error("Unexpected game to be done within the first round")
+    }
+
+    obs = nextPlayerObs
   }
 };
 
@@ -107,9 +116,8 @@ const step = function (
   if (done) {
     return [obs, done];
   }
-  console.log("Next player", obs.current_player)
 
-  // python bigtwo game's step returns the current player obs instead of the next player
+  // Python bigtwo game's step returns the current player obs instead of the next player
   // needs to call get_current_player_obs.
   obs = pyEnv.game.get_current_player_obs()
   while (true) {
@@ -117,7 +125,14 @@ const step = function (
       return [obs, false];
     }
 
-    obs = playBot(pyEnv, obs, model)
+    let [nextPlayerObs, done] = playBot(pyEnv, obs, model)
+
+    // Game finished, won by one of the bots, returns the current observation for the player.
+    if (done) {
+      return [pyEnv.game.get_player_obs(DEFAULT_PLAYER_ID), true]
+    }
+
+    obs = nextPlayerObs
   }
 };
 
@@ -134,6 +149,31 @@ function App() {
     13, 13, 13,
   ]);
   const [lastPlayedCards, setLastPlayed] = useState<Array<PyCard>>([]);
+
+  const updateState = (obs: PyProxy) => {
+    const cards = obs.your_hands.cards;
+
+    const transformedCards: SelectablePyCard[] = [];
+    for (let card of cards) {
+      transformedCards.push({
+        value: toPyCard(card.suit.value, card.rank.value),
+        isSelected: false,
+      });
+    }
+
+    const lastPlayedCards: PyCard[] = [];
+    for (let card of obs.last_cards_played) {
+      lastPlayedCards.push(toPyCard(card.suit.value, card.rank.value));
+    }
+
+    setNumOpponentCards(
+      obs.num_card_per_player.toJs({ create_proxies: false })
+    );
+    setLastPlayed(lastPlayedCards);
+    setHand(transformedCards);
+
+    cards.destroy();
+  }
 
   useEffect(() => {
     const loadApplication = async () => {
@@ -186,30 +226,11 @@ function App() {
       setPyEnv(pyEnv);
 
       const obs = resetAndStart(pyEnv, model);
-      const cards = obs.your_hands.cards;
+      updateState(obs)
 
-      const transformedCards: SelectablePyCard[] = [];
-      for (let card of cards) {
-        transformedCards.push({
-          value: toPyCard(card.suit.value, card.rank.value),
-          isSelected: false,
-        });
-      }
-
-      const lastPlayedCards: PyCard[] = [];
-      for (let card of obs.last_cards_played) {
-        lastPlayedCards.push(toPyCard(card.suit.value, card.rank.value));
-      }
-
-      setNumOpponentCards(
-        obs.num_card_per_player.toJs({ create_proxies: false })
-      );
-      setLastPlayed(lastPlayedCards);
-      setHand(transformedCards);
-      setLoading(false);
+      setLoading(false)
 
       // Clean up any PyProxy we don't need
-      cards.destroy();
       obs.destroy();
     };
 
@@ -255,43 +276,25 @@ function App() {
 
 
     const [obs, done] = step(pyEnv!!, model, rawAction);
-    console.log("are we done?", done)
-    const cards = obs.your_hands.cards;
     if (done) {
-      if (cards.length) {
+      updateState(obs)
+      if (obs.your_hands.cards.length) {
         alert("You Lost");
       } else {
         alert("You won");
       }
 
-      resetAndStart(pyEnv!!, model);
+      const newObs = resetAndStart(pyEnv!!, model);
+      updateState(newObs)
+
+      newObs.destroy()
       return;
     }
 
-    const transformedCards: SelectablePyCard[] = [];
-    for (let card of cards) {
-      transformedCards.push({
-        value: toPyCard(card.suit.value, card.rank.value),
-        isSelected: false,
-      });
-    }
+    updateState(obs)
 
-    const lastPlayedCards: PyCard[] = [];
-    for (let card of obs.last_cards_played) {
-      lastPlayedCards.push(toPyCard(card.suit.value, card.rank.value));
-    }
-
-    setNumOpponentCards(
-      obs.num_card_per_player.toJs({ create_proxies: false })
-    );
-    setLastPlayed(lastPlayedCards);
-    setHand(transformedCards);
-
-    // Clean up any PyProxy we don't need
-    cards.destroy();
-    obs.destroy();
-
-    setPlaying(false);
+    obs.destroy()
+    setPlaying(false)
   };
 
   return (

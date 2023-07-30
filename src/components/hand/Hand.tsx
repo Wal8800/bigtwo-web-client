@@ -28,7 +28,7 @@ export default function Hand(props: HandProp) {
     <Container x={x} y={y}>
       {cards.map((card, index) => (
         <Card 
-        key={`${card.value.rank}_${card.value.suit}`} 
+        key={`${index}_${card.value.rank}_${card.value.suit}`}
         x={(index * CARD_WIDTH) / 2}
         isSelected={card.isSelected}
         onSelect={(isSelected: boolean) => handleCardSelect(index, isSelected)}
