@@ -6,7 +6,7 @@ import { loadPyodide } from "pyodide";
 import type { PyCallable, PyProxy, PyProxyWithGet } from "pyodide/ffi";
 import * as tf from "@tensorflow/tfjs";
 import ClipLoader from "react-spinners/ClipLoader";
-import { PyCard, SelectablePyCard, toPyCard } from "./model";
+import { PyCard, Rank, SelectablePyCard, Suit, toPyCard } from "./model";
 import OpponentHand from "./components/hand/OpponentHand";
 import { CARD_HEIGHT } from "./components/card/Card";
 import LastPlayedCards from "./components/hand/LastPlayedCards";
@@ -21,13 +21,13 @@ const STAGE_PADDING = 50;
 const DEFAULT_PLAYER_ID = 0;
 
 type PyEnv = {
-  game: PyProxy
-  obsToOhe: PyCallable
-  generateActionMask: PyCallable
-  toCard: PyCallable
-  runStep: PyCallable
-  rawActionToCat: PyProxyWithGet
-  catToRawAction: PyProxyWithGet
+  game: PyProxy;
+  obsToOhe: PyCallable;
+  generateActionMask: PyCallable;
+  toCard: PyCallable;
+  runStep: PyCallable;
+  rawActionToCat: PyProxyWithGet;
+  catToRawAction: PyProxyWithGet;
 };
 
 const predictAction = function (
@@ -49,10 +49,11 @@ const predictAction = function (
   return cat;
 };
 
-const playBot = function(
+const playBot = function (
   pyEnv: PyEnv,
   obs: PyProxy,
-  model: any,): [PyProxy, boolean] {
+  model: any
+): [PyProxy, boolean] {
   const ohe = pyEnv.obsToOhe(obs).tolist();
   const mask = pyEnv.generateActionMask(pyEnv.rawActionToCat, obs);
 
@@ -62,27 +63,33 @@ const playBot = function(
     mask.toJs({ create_proxies: false })
   );
 
-  ohe.destroy()
-  mask.destroy()
+  ohe.destroy();
+  mask.destroy();
 
   const rawAction = pyEnv.catToRawAction.get(cat);
-  const action = []
-  let index = 0
+  const action = [];
+  let index = 0;
   for (let card of obs.your_hands.cards) {
     if (rawAction.get(index) === 1) {
       action.push(card);
     }
 
-    index++
+    index++;
   }
 
-  const [updatedObs, done] = pyEnv.runStep(pyEnv.game, action)
+  const [updatedObs, done] = pyEnv.runStep(pyEnv.game, action);
 
-  updatedObs.destroy()
-  rawAction.destroy()
+  updatedObs.destroy();
+  rawAction.destroy();
 
-  const nextPlayerObs = pyEnv.game.get_current_player_obs()
-  return [nextPlayerObs, done]
+  const nextPlayerObs = pyEnv.game.get_current_player_obs();
+  return [nextPlayerObs, done];
+};
+
+enum SortBy {
+  NoSort,
+  Suit,
+  Rank,
 }
 
 const resetAndStart = function (pyEnv: PyEnv, model: any) {
@@ -92,12 +99,12 @@ const resetAndStart = function (pyEnv: PyEnv, model: any) {
       return obs;
     }
 
-    let [nextPlayerObs, done] = playBot(pyEnv, obs, model)
+    let [nextPlayerObs, done] = playBot(pyEnv, obs, model);
     if (done) {
-      throw new Error("Unexpected game to be done within the first round")
+      throw new Error("Unexpected game to be done within the first round");
     }
 
-    obs = nextPlayerObs
+    obs = nextPlayerObs;
   }
 };
 
@@ -106,39 +113,78 @@ const step = function (
   model: any,
   selectedCards: Array<SelectablePyCard>
 ): [PyProxy, boolean] {
-  console.log("selectedCards", selectedCards) 
-  const action: PyProxy[] = []
+  console.log("selectedCards", selectedCards);
+  const action: PyProxy[] = [];
   for (let card of selectedCards) {
-    action.push(pyEnv.toCard(card.value.suit, card.value.rank))
+    action.push(pyEnv.toCard(card.value.suit, card.value.rank));
   }
 
-  let [obs, done] = pyEnv.runStep(pyEnv.game, action)
+  let [obs, done] = pyEnv.runStep(pyEnv.game, action);
   if (done) {
     return [obs, done];
   }
 
   // Python bigtwo game's step returns the current player obs instead of the next player
   // needs to call get_current_player_obs.
-  obs = pyEnv.game.get_current_player_obs()
+  obs = pyEnv.game.get_current_player_obs();
   while (true) {
     if (obs.current_player === DEFAULT_PLAYER_ID) {
       return [obs, false];
     }
 
-    let [nextPlayerObs, done] = playBot(pyEnv, obs, model)
+    let [nextPlayerObs, done] = playBot(pyEnv, obs, model);
 
     // Game finished, won by one of the bots, returns the current observation for the player.
     if (done) {
-      return [pyEnv.game.get_player_obs(DEFAULT_PLAYER_ID), true]
+      return [pyEnv.game.get_player_obs(DEFAULT_PLAYER_ID), true];
     }
 
-    obs = nextPlayerObs
+    obs = nextPlayerObs;
+  }
+};
+
+const getSortByFunc = (sortBy: SortBy) => {
+  const rankOrder = Object.values(Rank);
+  const suitOrder = Object.values(Suit);
+  switch (sortBy) {
+    case SortBy.NoSort:
+      return (a: SelectablePyCard, b: SelectablePyCard) => {
+        return 0;
+      };
+    case SortBy.Rank:
+      return (a: SelectablePyCard, b: SelectablePyCard) => {
+        const result =
+          rankOrder.indexOf(a.value.rank) - rankOrder.indexOf(b.value.rank);
+
+        if (result != 0) {
+          return result;
+        }
+
+        return (
+          suitOrder.indexOf(a.value.suit) - suitOrder.indexOf(b.value.suit)
+        );
+      };
+    case SortBy.Suit:
+      return (a: SelectablePyCard, b: SelectablePyCard) => {
+        const result =
+          suitOrder.indexOf(a.value.suit) - suitOrder.indexOf(b.value.suit);
+
+        if (result != 0) {
+          return result;
+        }
+
+        return (
+          rankOrder.indexOf(a.value.rank) - rankOrder.indexOf(b.value.rank)
+        );
+      };
+    default:
+      throw new Error(`unexpected sort by: ${sortBy}`);
   }
 };
 
 function App() {
   const [loading, setLoading] = useState(true);
-
+  const [sortBy, setSortBy] = useState<SortBy>(SortBy.NoSort);
   const [playing, setPlaying] = useState(false);
 
   const [model, setModel] = useState<tf.GraphModel>();
@@ -150,7 +196,7 @@ function App() {
   ]);
   const [lastPlayedCards, setLastPlayed] = useState<Array<PyCard>>([]);
 
-  const updateState = (obs: PyProxy) => {
+  const updateState = (obs: PyProxy, sortBy: SortBy) => {
     const cards = obs.your_hands.cards;
 
     const transformedCards: SelectablePyCard[] = [];
@@ -160,24 +206,25 @@ function App() {
         isSelected: false,
       });
 
-      card.destroy()
+      card.destroy();
     }
 
     const lastPlayedCards: PyCard[] = [];
     for (let card of obs.last_cards_played) {
       lastPlayedCards.push(toPyCard(card.suit.value, card.rank.value));
 
-      card.destroy()
+      card.destroy();
     }
 
     setNumOpponentCards(
       obs.num_card_per_player.toJs({ create_proxies: false })
     );
     setLastPlayed(lastPlayedCards);
-    setHand(transformedCards);
+    const compareFunc = getSortByFunc(sortBy);
+    setHand(transformedCards.slice().sort(compareFunc));
 
     cards.destroy();
-  }
+  };
 
   useEffect(() => {
     const loadApplication = async () => {
@@ -222,13 +269,13 @@ function App() {
             return Card(Suit(suit), Rank(rank))
       `);
 
-      const game = runTime.globals.get("game")
-      const catToRawAction = runTime.globals.get("cat_to_raw_action")
-      const rawActionToCat = runTime.globals.get("raw_action_to_cat")
-      const generateActionMask = runTime.globals.get("generate_action_mask")
-      const obsToOhe = runTime.globals.get("obs_to_ohe")
-      const toCard = runTime.globals.get("to_card")
-      const runStep = runTime.globals.get("run_step")
+      const game = runTime.globals.get("game");
+      const catToRawAction = runTime.globals.get("cat_to_raw_action");
+      const rawActionToCat = runTime.globals.get("raw_action_to_cat");
+      const generateActionMask = runTime.globals.get("generate_action_mask");
+      const obsToOhe = runTime.globals.get("obs_to_ohe");
+      const toCard = runTime.globals.get("to_card");
+      const runStep = runTime.globals.get("run_step");
 
       const pyEnv = {
         game,
@@ -237,14 +284,14 @@ function App() {
         generateActionMask,
         obsToOhe,
         toCard,
-        runStep
+        runStep,
       };
       setPyEnv(pyEnv);
 
       const obs = resetAndStart(pyEnv, model);
-      updateState(obs)
+      updateState(obs, SortBy.NoSort);
 
-      setLoading(false)
+      setLoading(false);
 
       // Clean up any PyProxy we don't need
       obs.destroy();
@@ -271,21 +318,29 @@ function App() {
     };
   }, [pyEnv]);
 
-  const bunny =
-    "https://s3-us-west-2.amazonaws.com/s.cdpn.io/693612/IaUrttj.png";
+  const onSortBy = (sortBy: SortBy) => {
+    return (event: any) => {
+      const compareFunc = getSortByFunc(sortBy);
+      const sortedHand = hand.slice().sort(compareFunc);
+
+      setSortBy(sortBy);
+      setHand(sortedHand);
+    };
+  };
 
   const onPlay = (event: any) => {
-    console.log("clicked play", playing)
     if (playing) {
       return;
     }
 
     setPlaying(true);
-    
-    let action: Array<SelectablePyCard> = hand.filter((card) => card.isSelected );
+
+    let action: Array<SelectablePyCard> = hand.filter(
+      (card) => card.isSelected
+    );
     const [obs, done] = step(pyEnv!!, model, action);
     if (done) {
-      updateState(obs)
+      updateState(obs, sortBy);
       if (obs.your_hands.cards.length) {
         alert("You Lost");
       } else {
@@ -293,16 +348,16 @@ function App() {
       }
 
       const newObs = resetAndStart(pyEnv!!, model);
-      updateState(newObs)
+      updateState(newObs, sortBy);
 
-      newObs.destroy()
+      newObs.destroy();
       return;
     }
 
-    updateState(obs)
+    updateState(obs, sortBy);
 
-    obs.destroy()
-    setPlaying(false)
+    obs.destroy();
+    setPlaying(false);
   };
 
   return (
@@ -362,12 +417,39 @@ function App() {
 
           {/* play button */}
           <Sprite
-            x={(STAGE_WIDTH - MAX_HAND_WIDTH) / 2 + MAX_HAND_WIDTH + 25}
+            x={(STAGE_WIDTH - MAX_HAND_WIDTH) / 2 + MAX_HAND_WIDTH + 20}
             y={STAGE_HEIGHT - CARD_HEIGHT - STAGE_PADDING}
-            anchor={[0.5, 0.5]}
+            height={52}
+            width={122}
             interactive={true}
-            image={bunny}
+            image={process.env.PUBLIC_URL + "custom_images/play_button.svg.png"}
             pointerdown={onPlay}
+          />
+
+          {/* sort by rank button */}
+          <Sprite
+            x={STAGE_PADDING + CARD_HEIGHT + 85}
+            y={STAGE_HEIGHT - CARD_HEIGHT - STAGE_PADDING}
+            height={38}
+            width={38}
+            interactive={true}
+            image={
+              process.env.PUBLIC_URL + "custom_images/sort_by_rank.svg.png"
+            }
+            pointerdown={onSortBy(SortBy.Rank)}
+          />
+
+          {/* sort by suit button */}
+          <Sprite
+            x={STAGE_PADDING + CARD_HEIGHT + 85}
+            y={STAGE_HEIGHT - CARD_HEIGHT - STAGE_PADDING + 60}
+            height={38}
+            width={38}
+            interactive={true}
+            image={
+              process.env.PUBLIC_URL + "custom_images/sort_by_suit.svg.png"
+            }
+            pointerdown={onSortBy(SortBy.Suit)}
           />
         </Stage>
       )}
