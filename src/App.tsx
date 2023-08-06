@@ -21,11 +21,13 @@ const STAGE_PADDING = 50;
 const DEFAULT_PLAYER_ID = 0;
 
 type PyEnv = {
-  game: PyProxy;
-  obsToOhe: PyCallable;
-  generateActionMask: PyCallable;
-  rawActionToCat: PyProxyWithGet;
-  catToRawAction: PyProxyWithGet;
+  game: PyProxy
+  obsToOhe: PyCallable
+  generateActionMask: PyCallable
+  toCard: PyCallable
+  runStep: PyCallable
+  rawActionToCat: PyProxyWithGet
+  catToRawAction: PyProxyWithGet
 };
 
 const predictAction = function (
@@ -64,24 +66,17 @@ const playBot = function(
   mask.destroy()
 
   const rawAction = pyEnv.catToRawAction.get(cat);
-
-  const cards: PyCard[] = []
-
+  const action = []
   let index = 0
   for (let card of obs.your_hands.cards) {
     if (rawAction.get(index) === 1) {
-      cards.push(toPyCard(card.suit.value, card.rank.value));
+      action.push(card);
     }
 
     index++
   }
 
-  console.log(
-    "player",
-    obs.current_player,
-    cards
-  )
-  const [updatedObs, done] = pyEnv.game.step(rawAction);
+  const [updatedObs, done] = pyEnv.runStep(pyEnv.game, action)
 
   updatedObs.destroy()
   rawAction.destroy()
@@ -109,10 +104,15 @@ const resetAndStart = function (pyEnv: PyEnv, model: any) {
 const step = function (
   pyEnv: PyEnv,
   model: any,
-  rawAction: Array<number>
+  selectedCards: Array<SelectablePyCard>
 ): [PyProxy, boolean] {
-  console.log("Raw action", rawAction)
-  let [obs, done] = pyEnv.game.step(rawAction);
+  console.log("selectedCards", selectedCards) 
+  const action: PyProxy[] = []
+  for (let card of selectedCards) {
+    action.push(pyEnv.toCard(card.value.suit, card.value.rank))
+  }
+
+  let [obs, done] = pyEnv.runStep(pyEnv.game, action)
   if (done) {
     return [obs, done];
   }
@@ -159,11 +159,15 @@ function App() {
         value: toPyCard(card.suit.value, card.rank.value),
         isSelected: false,
       });
+
+      card.destroy()
     }
 
     const lastPlayedCards: PyCard[] = [];
     for (let card of obs.last_cards_played) {
       lastPlayedCards.push(toPyCard(card.suit.value, card.rank.value));
+
+      card.destroy()
     }
 
     setNumOpponentCards(
@@ -205,16 +209,26 @@ function App() {
           generate_action_mask,
           obs_to_ohe,
         )
+        from playingcards.card import Card, Rank, Suit
 
         game = BigTwo()
         cat_to_raw_action, raw_action_to_cat = create_action_cat_mapping()
+
+        def run_step(env: BigTwo, js_proxy):
+            action = js_proxy.to_py()
+            return env.step(action)
+
+        def to_card(suit: str, rank: str)-> Card:
+            return Card(Suit(suit), Rank(rank))
       `);
 
-      const game = runTime.globals.get("game");
-      const catToRawAction = runTime.globals.get("cat_to_raw_action");
-      const rawActionToCat = runTime.globals.get("raw_action_to_cat");
-      const generateActionMask = runTime.globals.get("generate_action_mask");
-      const obsToOhe = runTime.globals.get("obs_to_ohe");
+      const game = runTime.globals.get("game")
+      const catToRawAction = runTime.globals.get("cat_to_raw_action")
+      const rawActionToCat = runTime.globals.get("raw_action_to_cat")
+      const generateActionMask = runTime.globals.get("generate_action_mask")
+      const obsToOhe = runTime.globals.get("obs_to_ohe")
+      const toCard = runTime.globals.get("to_card")
+      const runStep = runTime.globals.get("run_step")
 
       const pyEnv = {
         game,
@@ -222,6 +236,8 @@ function App() {
         rawActionToCat,
         generateActionMask,
         obsToOhe,
+        toCard,
+        runStep
       };
       setPyEnv(pyEnv);
 
@@ -266,16 +282,8 @@ function App() {
 
     setPlaying(true);
     
-    // The python game expects an array of 13 0/1.
-    let rawAction: Array<number> = hand.map((card) => {
-      return card.isSelected ? 1 : 0;
-    });
-    if (rawAction.length < 13) {
-      rawAction = rawAction.concat(Array<number>(13-rawAction.length).fill(0))
-    }
-
-
-    const [obs, done] = step(pyEnv!!, model, rawAction);
+    let action: Array<SelectablePyCard> = hand.filter((card) => card.isSelected );
+    const [obs, done] = step(pyEnv!!, model, action);
     if (done) {
       updateState(obs)
       if (obs.your_hands.cards.length) {
