@@ -1,13 +1,11 @@
 enum Suit {
-    SPADE = "♠",
-    HEART = "♥",
+    DIAMOND = "♦",
     CLUB  = "♣",
-    DIAMOND = "♦"
+    HEART = "♥",
+    SPADE = "♠"
 }
   
 enum Rank {
-    ACE = "A",
-    TWO = "2",
     THREE = "3",
     FOUR = "4",
     FIVE = "5",
@@ -18,7 +16,9 @@ enum Rank {
     TEN = "10",
     JACK = "J",
     QUEEN = "Q",
-    KING = "K"
+    KING = "K",
+    ACE = "A",
+    TWO = "2",
 }
   
   

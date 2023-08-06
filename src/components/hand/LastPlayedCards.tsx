@@ -1,6 +1,6 @@
 import { Container } from "@pixi/react";
 import Card, { CARD_WIDTH } from "../card/Card";
-import { PyCard } from "../../model";
+import { PyCard, Rank } from "../../model";
 
 type LastPlayedCardsProps = {
   x: number;
@@ -9,10 +9,13 @@ type LastPlayedCardsProps = {
 };
 export default function LastPlayedCards(props: LastPlayedCardsProps) {
   const { x, y, cards } = props;
+  const rankOrder = Object.values(Rank)
+
+  const sortedCards = cards.sort((a, b) => rankOrder.indexOf(a.rank) - rankOrder.indexOf(b.rank))
 
   return (
     <Container x={x} y={y}>
-      {cards.map((card, index) => (
+      {sortedCards.map((card, index) => (
         <Card
           key={index}
           x={(index * CARD_WIDTH) / 2}
