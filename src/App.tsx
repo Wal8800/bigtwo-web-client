@@ -156,7 +156,7 @@ const getSortByFunc = (sortBy: SortBy) => {
         const result =
           rankOrder.indexOf(a.value.rank) - rankOrder.indexOf(b.value.rank);
 
-        if (result != 0) {
+        if (result !== 0) {
           return result;
         }
 
@@ -169,7 +169,7 @@ const getSortByFunc = (sortBy: SortBy) => {
         const result =
           suitOrder.indexOf(a.value.suit) - suitOrder.indexOf(b.value.suit);
 
-        if (result != 0) {
+        if (result !== 0) {
           return result;
         }
 
@@ -351,12 +351,11 @@ function App() {
       updateState(newObs, sortBy);
 
       newObs.destroy();
-      return;
+    } else {
+      updateState(obs, sortBy);
+      obs.destroy();
     }
 
-    updateState(obs, sortBy);
-
-    obs.destroy();
     setPlaying(false);
   };
 
