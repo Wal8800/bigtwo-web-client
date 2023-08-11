@@ -8,7 +8,7 @@ type CardBackProps = {
 }
 
 export default function CardBack({x, y}: CardBackProps) {
-    const [position, _] = React.useState({ x: x || 0, y: y || 0 })
+    const position = { x: x || 0, y: y || 0 }
 
     return (
         <Sprite

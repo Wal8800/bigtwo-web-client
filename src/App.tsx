@@ -45,8 +45,7 @@ const predictAction = function (
   const infMask = tf.tensor(1).sub(tf.tensor(mask)).mul(tf.scalar(-1e9));
   const finalOutput = output[0].squeeze().add(infMask);
 
-  const cat = finalOutput.argMax().arraySync();
-  return cat;
+  return finalOutput.argMax().arraySync();
 };
 
 const playBot = function (
