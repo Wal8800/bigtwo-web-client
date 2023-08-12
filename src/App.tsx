@@ -85,12 +85,6 @@ const playBot = function (
   return [nextPlayerObs, done];
 };
 
-enum SortBy {
-  NoSort,
-  Suit,
-  Rank,
-}
-
 const resetAndStart = function (pyEnv: PyEnv, model: any) {
   let obs = pyEnv.game.reset();
   while (true) {
@@ -112,7 +106,6 @@ const step = function (
   model: any,
   selectedCards: Array<SelectablePyCard>
 ): [PyProxy, boolean] {
-  console.log("selectedCards", selectedCards);
   const action: PyProxy[] = [];
   for (let card of selectedCards) {
     action.push(pyEnv.toCard(card.value.suit, card.value.rank));
@@ -141,6 +134,12 @@ const step = function (
     obs = nextPlayerObs;
   }
 };
+
+enum SortBy {
+  NoSort,
+  Suit,
+  Rank,
+}
 
 const getSortByFunc = (sortBy: SortBy) => {
   const rankOrder = Object.values(Rank);
@@ -211,7 +210,6 @@ function App() {
     const lastPlayedCards: PyCard[] = [];
     for (let card of obs.last_cards_played) {
       lastPlayedCards.push(toPyCard(card.suit.value, card.rank.value));
-
       card.destroy();
     }
 
@@ -241,10 +239,8 @@ function App() {
             import os
             from pyodide.http import pyfetch
 
-            print("loading card games")
             response = await pyfetch("card-games.zip")
             await response.unpack_archive()
-            print("loaded card games")
         `);
 
       // Initialising global python variables that we will be using.
@@ -332,12 +328,23 @@ function App() {
       return;
     }
 
+    if (!pyEnv) {
+      throw new Error("Expected python environment to be ready");
+    }
+
     setPlaying(true);
 
     let action: Array<SelectablePyCard> = hand.filter(
       (card) => card.isSelected
     );
-    const [obs, done] = step(pyEnv!!, model, action);
+
+    const prevLastPlayedCards: PyCard[] = [];
+    for (let card of pyEnv.game.get_current_player_obs().last_cards_played) {
+      prevLastPlayedCards.push(toPyCard(card.suit.value, card.rank.value));
+      card.destroy();
+    }
+
+    const [obs, done] = step(pyEnv, model, action);
     if (done) {
       updateState(obs, sortBy);
       if (obs.your_hands.cards.length) {
@@ -350,6 +357,21 @@ function App() {
       updateState(newObs, sortBy);
 
       newObs.destroy();
+      setPlaying(false);
+      return;
+    }
+
+    const currLastPlayedCards: PyCard[] = [];
+    for (let card of obs.last_cards_played) {
+      currLastPlayedCards.push(toPyCard(card.suit.value, card.rank.value));
+      card.destroy();
+    }
+
+    if (
+      JSON.stringify(prevLastPlayedCards) ===
+      JSON.stringify(currLastPlayedCards)
+    ) {
+      alert("You played an invalid combination, please select again.");
     } else {
       updateState(obs, sortBy);
       obs.destroy();
