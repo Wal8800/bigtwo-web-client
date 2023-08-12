@@ -6,7 +6,7 @@ import { loadPyodide } from "pyodide";
 import type { PyCallable, PyProxy, PyProxyWithGet } from "pyodide/ffi";
 import * as tf from "@tensorflow/tfjs";
 import ClipLoader from "react-spinners/ClipLoader";
-import { PyCard, Rank, SelectablePyCard, Suit, toPyCard } from "./model";
+import { PyCard, Rank, SelectablePyCard, Suit, getCardImagePath, toPyCard } from "./model";
 import OpponentHand from "./components/hand/OpponentHand";
 import { CARD_HEIGHT } from "./components/card/Card";
 import LastPlayedCards from "./components/hand/LastPlayedCards";
@@ -180,6 +180,14 @@ const getSortByFunc = (sortBy: SortBy) => {
   }
 };
 
+const preloadCardImages = () => {
+  Object.values(Rank).forEach((rank) => {
+    Object.values(Suit).forEach((suit) => {
+      new Image().src = getCardImagePath(suit, rank)
+    })
+  })
+}
+
 function App() {
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<SortBy>(SortBy.NoSort);
@@ -291,6 +299,9 @@ function App() {
       // Clean up any PyProxy we don't need
       obs.destroy();
     };
+
+
+    preloadCardImages();
 
     loadApplication();
   }, []);

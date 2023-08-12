@@ -1,6 +1,6 @@
 import { Sprite } from "@pixi/react"
 import React from 'react';
-import { PyCard, Suit } from "../../model";
+import { PyCard, getCardImagePath } from "../../model";
 
 
 type CardProps = {
@@ -14,20 +14,6 @@ type CardProps = {
 export const CARD_WIDTH = 84
 export const CARD_HEIGHT = 128
 
-function toImageSuit(suit: Suit): String{
-  switch (suit) {
-    case Suit.SPADE:
-      return "S"
-    case Suit.HEART:
-      return "H"
-    case Suit.CLUB:
-      return "C"
-    case Suit.DIAMOND:
-      return "D"
-    default:
-      throw new Error(`unexpected suit: ${suit}`)
-  }
-}
 
 function Card({ x, y, card, isSelected, onSelect } : CardProps) {
     const [position, setPosition] = React.useState({ x: x || 0, y: y || 0 })
@@ -43,12 +29,12 @@ function Card({ x, y, card, isSelected, onSelect } : CardProps) {
         onSelect?.(isSelected)
     }
 
-    const imageName = `/images/${card.rank}${toImageSuit(card.suit)}.svg.png`
+    const imagePath = getCardImagePath(card.suit, card.rank)
 
     if (onSelect === undefined) {
       return (
         <Sprite
-        image={process.env.PUBLIC_URL + imageName}
+        image={imagePath}
         height={CARD_HEIGHT}
         width={CARD_WIDTH}
         position={position}
@@ -58,7 +44,7 @@ function Card({ x, y, card, isSelected, onSelect } : CardProps) {
 
     return (
         <Sprite
-        image={process.env.PUBLIC_URL + imageName}
+        image={imagePath}
         height={CARD_HEIGHT}
         width={CARD_WIDTH}
         position={position}
