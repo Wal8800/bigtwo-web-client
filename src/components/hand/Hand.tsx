@@ -30,6 +30,7 @@ export default function Hand(props: HandProp) {
         <Card
           key={`${index}_${card.value.rank}_${card.value.suit}`}
           x={(index * CARD_WIDTH) / 2}
+          y={0}
           isSelected={card.isSelected}
           onSelect={(isSelected: boolean) =>
             handleCardSelect(index, isSelected)

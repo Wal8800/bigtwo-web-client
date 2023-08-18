@@ -327,7 +327,12 @@ function App() {
   const onSortBy = (sortBy: SortBy) => {
     return (event: any) => {
       const compareFunc = getSortByFunc(sortBy);
-      const sortedHand = hand.slice().sort(compareFunc);
+      const sortedHand = hand.map((card) => {
+        return {
+          value: card.value,
+          isSelected: false
+        }
+      }).sort(compareFunc);
 
       setSortBy(sortBy);
       setHand(sortedHand);
