@@ -28,6 +28,9 @@ const STAGE_PADDING = 50;
 
 const DEFAULT_PLAYER_ID = 0;
 
+const PLAY_BUTTON_URL = "custom_images/play_button.png";
+const SKIP_BUTTON_URL = "custom_images/skip_button.png";
+
 type PyEnv = {
   game: PyProxy;
   obsToOhe: PyCallable;
@@ -210,6 +213,8 @@ function App() {
   ]);
   const [lastPlayedCards, setLastPlayed] = useState<Array<PyCard>>([]);
 
+  const [playImage, setPlayImage] = useState(SKIP_BUTTON_URL);
+
   const updateState = (obs: PyProxy, sortBy: SortBy) => {
     const cards = obs.your_hands.cards;
 
@@ -329,6 +334,18 @@ function App() {
       window.removeEventListener("beforeunload", cleanUp);
     };
   }, [pyEnv]);
+
+  useEffect(() => {
+    const hasSelected = hand.some((card) => {
+      return card.isSelected;
+    });
+
+    if (hasSelected) {
+      setPlayImage(PLAY_BUTTON_URL);
+    } else {
+      setPlayImage(SKIP_BUTTON_URL);
+    }
+  }, [hand]);
 
   const onSortBy = (sortBy: SortBy) => {
     return (event: any) => {
@@ -466,7 +483,7 @@ function App() {
             height={52}
             width={122}
             interactive={true}
-            image={process.env.PUBLIC_URL + "custom_images/play_button.png"}
+            image={process.env.PUBLIC_URL + playImage}
             pointerdown={onPlay}
           />
 
@@ -477,9 +494,7 @@ function App() {
             height={38}
             width={38}
             interactive={true}
-            image={
-              process.env.PUBLIC_URL + "custom_images/sort_by_rank.png"
-            }
+            image={process.env.PUBLIC_URL + "custom_images/sort_by_rank.png"}
             pointerdown={onSortBy(SortBy.Rank)}
           />
 
@@ -490,9 +505,7 @@ function App() {
             height={38}
             width={38}
             interactive={true}
-            image={
-              process.env.PUBLIC_URL + "custom_images/sort_by_suit.png"
-            }
+            image={process.env.PUBLIC_URL + "custom_images/sort_by_suit.png"}
             pointerdown={onSortBy(SortBy.Suit)}
           />
         </Stage>
