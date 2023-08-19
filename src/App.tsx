@@ -17,7 +17,6 @@ import {
 import OpponentHand from "./components/hand/OpponentHand";
 import { CARD_HEIGHT } from "./components/card/Card";
 import LastPlayedCards from "./components/hand/LastPlayedCards";
-import { start } from "repl";
 
 // Issue at https://github.com/pixijs/pixi-react/issues/416
 console.log(PIXI.Texture.WHITE);
@@ -30,6 +29,10 @@ const DEFAULT_PLAYER_ID = 0;
 
 const PLAY_BUTTON_URL = "custom_images/play_button.png";
 const SKIP_BUTTON_URL = "custom_images/skip_button.png";
+const HOW_TO_PLAY_BUTTON_URL = "custom_images/how_to_play.png";
+
+const HOW_TO_PLAY_README_URL =
+  "https://github.com/Wal8800/bigtwo-web-client/blob/main/how_to_play.md";
 
 type PyEnv = {
   game: PyProxy;
@@ -364,6 +367,10 @@ function App() {
     };
   };
 
+  const openHowToPlay = (event: any) => {
+    window.open(HOW_TO_PLAY_README_URL);
+  };
+
   const onPlay = (event: any) => {
     if (playing) {
       return;
@@ -476,6 +483,17 @@ function App() {
             rotation={270}
           />
 
+          {/* how to play button*/}
+          <Sprite
+            x={(STAGE_WIDTH - MAX_HAND_WIDTH) / 2 - 20 - 122}
+            y={STAGE_HEIGHT - CARD_HEIGHT - STAGE_PADDING}
+            height={52}
+            width={122}
+            interactive={true}
+            image={process.env.PUBLIC_URL + HOW_TO_PLAY_BUTTON_URL}
+            pointerdown={openHowToPlay}
+          />
+
           {/* play button */}
           <Sprite
             x={(STAGE_WIDTH - MAX_HAND_WIDTH) / 2 + MAX_HAND_WIDTH + 20}
@@ -489,8 +507,8 @@ function App() {
 
           {/* sort by rank button */}
           <Sprite
-            x={STAGE_PADDING + CARD_HEIGHT + 85}
-            y={STAGE_HEIGHT - CARD_HEIGHT - STAGE_PADDING}
+            x={(STAGE_WIDTH - MAX_HAND_WIDTH) / 2 + MAX_HAND_WIDTH + 20}
+            y={STAGE_HEIGHT - CARD_HEIGHT - STAGE_PADDING + 80}
             height={38}
             width={38}
             interactive={true}
@@ -500,8 +518,8 @@ function App() {
 
           {/* sort by suit button */}
           <Sprite
-            x={STAGE_PADDING + CARD_HEIGHT + 85}
-            y={STAGE_HEIGHT - CARD_HEIGHT - STAGE_PADDING + 60}
+            x={(STAGE_WIDTH - MAX_HAND_WIDTH) / 2 + MAX_HAND_WIDTH + 70}
+            y={STAGE_HEIGHT - CARD_HEIGHT - STAGE_PADDING + 80}
             height={38}
             width={38}
             interactive={true}
