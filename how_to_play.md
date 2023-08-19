@@ -57,3 +57,7 @@ A to 10 straight with the same suit.
 Straight < Flush < Full House < Four of a kind < Straight Flush < Royal Flush
 
 ## Example Round
+
+https://github.com/Wal8800/bigtwo-web-client/assets/8260377/d39d092f-3810-4e75-b2b9-43239aace956
+
+
