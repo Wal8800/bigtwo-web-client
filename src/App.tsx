@@ -6,10 +6,18 @@ import { loadPyodide } from "pyodide";
 import type { PyCallable, PyProxy, PyProxyWithGet } from "pyodide/ffi";
 import * as tf from "@tensorflow/tfjs";
 import ClipLoader from "react-spinners/ClipLoader";
-import { PyCard, Rank, SelectablePyCard, Suit, getCardImagePath, toPyCard } from "./model";
+import {
+  PyCard,
+  Rank,
+  SelectablePyCard,
+  Suit,
+  getCardImagePath,
+  toPyCard,
+} from "./model";
 import OpponentHand from "./components/hand/OpponentHand";
 import { CARD_HEIGHT } from "./components/card/Card";
 import LastPlayedCards from "./components/hand/LastPlayedCards";
+import { start } from "repl";
 
 // Issue at https://github.com/pixijs/pixi-react/issues/416
 console.log(PIXI.Texture.WHITE);
@@ -183,10 +191,10 @@ const getSortByFunc = (sortBy: SortBy) => {
 const preloadCardImages = () => {
   Object.values(Rank).forEach((rank) => {
     Object.values(Suit).forEach((suit) => {
-      new Image().src = getCardImagePath(suit, rank)
-    })
-  })
-}
+      new Image().src = getCardImagePath(suit, rank);
+    });
+  });
+};
 
 function App() {
   const [loading, setLoading] = useState(true);
@@ -243,13 +251,10 @@ function App() {
       await runTime.loadPackage("micropip");
       const micropip = await runTime.pyimport("micropip");
       await micropip.install("numpy");
-      await runTime.runPythonAsync(`
-            import os
-            from pyodide.http import pyfetch
 
-            response = await pyfetch("card-games.zip")
-            await response.unpack_archive()
-        `);
+      const response = await fetch("card-games.zip");
+      const buffer = await response.arrayBuffer();
+      await runTime.unpackArchive(buffer, "zip");
 
       // Initialising global python variables that we will be using.
       await runTime.runPythonAsync(`
@@ -300,7 +305,6 @@ function App() {
       obs.destroy();
     };
 
-
     preloadCardImages();
 
     loadApplication();
@@ -314,6 +318,8 @@ function App() {
         pyEnv.rawActionToCat.destroy();
         pyEnv.obsToOhe.destroy();
         pyEnv.generateActionMask.destroy();
+        pyEnv.toCard.destroy();
+        pyEnv.runStep.destroy();
       }
     };
 
@@ -327,12 +333,14 @@ function App() {
   const onSortBy = (sortBy: SortBy) => {
     return (event: any) => {
       const compareFunc = getSortByFunc(sortBy);
-      const sortedHand = hand.map((card) => {
-        return {
-          value: card.value,
-          isSelected: false
-        }
-      }).sort(compareFunc);
+      const sortedHand = hand
+        .map((card) => {
+          return {
+            value: card.value,
+            isSelected: false,
+          };
+        })
+        .sort(compareFunc);
 
       setSortBy(sortBy);
       setHand(sortedHand);
@@ -458,7 +466,7 @@ function App() {
             height={52}
             width={122}
             interactive={true}
-            image={process.env.PUBLIC_URL + "custom_images/play_button.svg.png"}
+            image={process.env.PUBLIC_URL + "custom_images/play_button.png"}
             pointerdown={onPlay}
           />
 
@@ -470,7 +478,7 @@ function App() {
             width={38}
             interactive={true}
             image={
-              process.env.PUBLIC_URL + "custom_images/sort_by_rank.svg.png"
+              process.env.PUBLIC_URL + "custom_images/sort_by_rank.png"
             }
             pointerdown={onSortBy(SortBy.Rank)}
           />
@@ -483,7 +491,7 @@ function App() {
             width={38}
             interactive={true}
             image={
-              process.env.PUBLIC_URL + "custom_images/sort_by_suit.svg.png"
+              process.env.PUBLIC_URL + "custom_images/sort_by_suit.png"
             }
             pointerdown={onSortBy(SortBy.Suit)}
           />
